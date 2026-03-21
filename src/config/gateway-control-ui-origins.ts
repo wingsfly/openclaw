@@ -30,15 +30,22 @@ export function resolveGatewayPortWithDefault(
 export function buildDefaultControlUiAllowedOrigins(params: {
   port: number;
   bind: unknown;
-  customBindHost?: string;
+  customBindHost?: string | string[];
 }): string[] {
   const origins = new Set<string>([
     `http://localhost:${params.port}`,
     `http://127.0.0.1:${params.port}`,
   ]);
-  const customBindHost = params.customBindHost?.trim();
-  if (params.bind === "custom" && customBindHost) {
-    origins.add(`http://${customBindHost}:${params.port}`);
+  if (params.bind === "custom" && params.customBindHost) {
+    const hosts = Array.isArray(params.customBindHost)
+      ? params.customBindHost
+      : [params.customBindHost];
+    for (const host of hosts) {
+      const trimmed = host.trim();
+      if (trimmed) {
+        origins.add(`http://${trimmed}:${params.port}`);
+      }
+    }
   }
   return [...origins];
 }

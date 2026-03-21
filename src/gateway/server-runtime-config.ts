@@ -15,12 +15,15 @@ import {
   isLoopbackHost,
   isTrustedProxyAddress,
   isValidIPv4,
+  normalizeCustomBindHosts,
   resolveGatewayBindHost,
 } from "./net.js";
 import { mergeGatewayTailscaleConfig } from "./startup-auth.js";
 
 export type GatewayRuntimeConfig = {
   bindHost: string;
+  /** Additional bind hosts beyond the primary (for bind=custom with multiple IPs). */
+  extraBindHosts?: string[];
   controlUiEnabled: boolean;
   openAiChatCompletionsEnabled: boolean;
   openAiChatCompletionsConfig?: import("../config/types.gateway.js").GatewayHttpChatCompletionsConfig;
@@ -56,20 +59,28 @@ export async function resolveGatewayRuntimeConfig(params: {
       `gateway bind=loopback resolved to non-loopback host ${bindHost}; refusing fallback to a network bind`,
     );
   }
+  let extraBindHosts: string[] | undefined;
   if (bindMode === "custom") {
-    const configuredCustomBindHost = customBindHost?.trim();
-    if (!configuredCustomBindHost) {
+    const allCustomHosts = normalizeCustomBindHosts(customBindHost);
+    if (allCustomHosts.length === 0) {
       throw new Error("gateway.bind=custom requires gateway.customBindHost");
     }
-    if (!isValidIPv4(configuredCustomBindHost)) {
+    for (const host of allCustomHosts) {
+      if (!isValidIPv4(host)) {
+        throw new Error(
+          `gateway.bind=custom requires valid IPv4 customBindHost entries (got ${host})`,
+        );
+      }
+    }
+    const primaryCustomHost = allCustomHosts[0];
+    if (bindHost !== primaryCustomHost) {
       throw new Error(
-        `gateway.bind=custom requires a valid IPv4 customBindHost (got ${configuredCustomBindHost})`,
+        `gateway bind=custom requested ${primaryCustomHost} but resolved ${bindHost}; refusing fallback`,
       );
     }
-    if (bindHost !== configuredCustomBindHost) {
-      throw new Error(
-        `gateway bind=custom requested ${configuredCustomBindHost} but resolved ${bindHost}; refusing fallback`,
-      );
+    // Extra hosts beyond the primary (will be bound as additional listen addresses).
+    if (allCustomHosts.length > 1) {
+      extraBindHosts = allCustomHosts.slice(1);
     }
   }
   const controlUiEnabled =
@@ -166,6 +177,7 @@ export async function resolveGatewayRuntimeConfig(params: {
 
   return {
     bindHost,
+    extraBindHosts,
     controlUiEnabled,
     openAiChatCompletionsEnabled,
     openAiChatCompletionsConfig: openAiChatCompletionsConfig

@@ -44,7 +44,8 @@ function resolveGatewayBaseUrl(config: OpenClawConfig): string {
   const scheme = config.gateway?.tls?.enabled ? "https" : "http";
   const port =
     typeof config.gateway?.port === "number" ? config.gateway.port : DEFAULT_GATEWAY_PORT;
-  const customHost = config.gateway?.customBindHost?.trim();
+  const rawCustomHost = config.gateway?.customBindHost;
+  const customHost = (Array.isArray(rawCustomHost) ? rawCustomHost[0] : rawCustomHost)?.trim();
 
   if (config.gateway?.bind === "custom" && customHost) {
     return `${scheme}://${customHost}:${port}`;

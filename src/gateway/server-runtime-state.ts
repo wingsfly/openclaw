@@ -50,6 +50,8 @@ import type { GatewayWsClient } from "./server/ws-types.js";
 export async function createGatewayRuntimeState(params: {
   cfg: import("../config/config.js").OpenClawConfig;
   bindHost: string;
+  /** Additional bind hosts beyond the primary (for bind=custom with multiple IPs). */
+  extraBindHosts?: string[];
   port: number;
   controlUiEnabled: boolean;
   controlUiBasePath: string;
@@ -152,7 +154,16 @@ export async function createGatewayRuntimeState(params: {
       );
     };
 
-    const bindHosts = await resolveGatewayListenHosts(params.bindHost);
+    const bindHosts = await resolveGatewayListenHosts(params.bindHost, {
+      extraBindHosts: params.extraBindHosts,
+    });
+    if (params.extraBindHosts) {
+      for (const extra of params.extraBindHosts) {
+        if (!bindHosts.includes(extra)) {
+          params.log.warn(`⚠️  Extra bind host ${extra} is not bindable and will be skipped.`);
+        }
+      }
+    }
     if (!isLoopbackHost(params.bindHost)) {
       params.log.warn(
         "⚠️  Gateway is binding to a non-loopback address. " +

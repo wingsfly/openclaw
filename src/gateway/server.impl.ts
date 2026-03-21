@@ -599,6 +599,7 @@ export async function startGatewayServer(
   });
   const {
     bindHost,
+    extraBindHosts,
     controlUiEnabled,
     openAiChatCompletionsEnabled,
     openAiChatCompletionsConfig,
@@ -704,6 +705,7 @@ export async function startGatewayServer(
   } = await createGatewayRuntimeState({
     cfg: cfgAtStart,
     bindHost,
+    extraBindHosts,
     port,
     controlUiEnabled,
     controlUiBasePath,

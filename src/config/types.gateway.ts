@@ -408,8 +408,8 @@ export type GatewayConfig = {
    * Default: loopback (127.0.0.1).
    */
   bind?: GatewayBindMode;
-  /** Custom IP address for bind="custom" mode. Fallback: 0.0.0.0. */
-  customBindHost?: string;
+  /** Custom IP address(es) for bind="custom" mode. Accepts a single IP or an array of IPs. Fallback: 0.0.0.0. */
+  customBindHost?: string | string[];
   controlUi?: GatewayControlUiConfig;
   auth?: GatewayAuthConfig;
   tailscale?: GatewayTailscaleConfig;

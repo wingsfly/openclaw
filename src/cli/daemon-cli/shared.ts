@@ -89,10 +89,13 @@ export function parsePortFromArgs(programArguments: string[] | undefined): numbe
 export function pickProbeHostForBind(
   bindMode: string,
   tailnetIPv4: string | undefined,
-  customBindHost?: string,
+  customBindHost?: string | string[],
 ) {
-  if (bindMode === "custom" && customBindHost?.trim()) {
-    return customBindHost.trim();
+  if (bindMode === "custom" && customBindHost) {
+    const firstHost = (Array.isArray(customBindHost) ? customBindHost[0] : customBindHost)?.trim();
+    if (firstHost) {
+      return firstHost;
+    }
   }
   if (bindMode === "tailnet") {
     return tailnetIPv4 ?? "127.0.0.1";

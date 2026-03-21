@@ -12,6 +12,7 @@ import {
 } from "../../config/config.js";
 import { hasConfiguredSecretInput } from "../../config/types.secrets.js";
 import { resolveGatewayAuth } from "../../gateway/auth.js";
+import { resolveFirstCustomBindHost } from "../../gateway/net.js";
 import { startGatewayServer } from "../../gateway/server.js";
 import type { GatewayWsLogStyle } from "../../gateway/ws-logging.js";
 import { setGatewayWsLogStyle } from "../../gateway/ws-logging.js";
@@ -263,7 +264,7 @@ async function runGatewayCommand(opts: GatewayRunOpts) {
           : bind === "lan"
             ? "0.0.0.0"
             : bind === "custom"
-              ? toOptionString(cfg.gateway?.customBindHost)
+              ? toOptionString(resolveFirstCustomBindHost(cfg.gateway?.customBindHost))
               : undefined;
       const bindWaitMs = await waitForPortBindable(port, {
         timeoutMs: 3000,

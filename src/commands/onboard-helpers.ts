@@ -10,7 +10,7 @@ import { resolveAgentModelPrimaryValue } from "../config/model-input.js";
 import { resolveSessionTranscriptsDirForAgent } from "../config/sessions.js";
 import { callGateway } from "../gateway/call.js";
 import { normalizeControlUiBasePath } from "../gateway/control-ui-shared.js";
-import { isValidIPv4 } from "../gateway/net.js";
+import { isValidIPv4, resolveFirstCustomBindHost } from "../gateway/net.js";
 import { detectBinary } from "../infra/detect-binary.js";
 import {
   inspectBestEffortPrimaryTailnetIPv4,
@@ -427,12 +427,12 @@ export const DEFAULT_WORKSPACE = DEFAULT_AGENT_WORKSPACE_DIR;
 export function resolveControlUiLinks(params: {
   port: number;
   bind?: "auto" | "lan" | "loopback" | "custom" | "tailnet";
-  customBindHost?: string;
+  customBindHost?: string | string[];
   basePath?: string;
 }): { httpUrl: string; wsUrl: string } {
   const port = params.port;
   const bind = params.bind ?? "loopback";
-  const customBindHost = params.customBindHost?.trim();
+  const customBindHost = resolveFirstCustomBindHost(params.customBindHost);
   const { tailnetIPv4 } = inspectBestEffortPrimaryTailnetIPv4();
   const host = (() => {
     if (bind === "custom" && customBindHost && isValidIPv4(customBindHost)) {

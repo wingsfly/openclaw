@@ -13,6 +13,7 @@ import {
   writeConfigFile,
 } from "../config/config.js";
 import { normalizeSecretInputString } from "../config/types.secrets.js";
+import { resolveFirstCustomBindHost } from "../gateway/net.js";
 import {
   buildPluginCompatibilityNotices,
   formatPluginCompatibilityNotice,
@@ -246,7 +247,7 @@ export async function runSetupWizard(
       tailscaleMode,
       token: baseConfig.gateway?.auth?.token,
       password: baseConfig.gateway?.auth?.password,
-      customBindHost: baseConfig.gateway?.customBindHost,
+      customBindHost: resolveFirstCustomBindHost(baseConfig.gateway?.customBindHost),
       tailscaleResetOnExit: baseConfig.gateway?.tailscale?.resetOnExit ?? false,
     };
   })();

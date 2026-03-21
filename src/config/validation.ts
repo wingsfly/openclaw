@@ -1,6 +1,7 @@
 import path from "node:path";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import { CHANNEL_IDS, normalizeChatChannelId } from "../channels/registry.js";
+import { resolveFirstCustomBindHost } from "../gateway/net.js";
 import { withBundledPluginAllowlistCompat } from "../plugins/bundled-compat.js";
 import { listBundledWebSearchPluginIds } from "../plugins/bundled-web-search-ids.js";
 import {
@@ -210,11 +211,12 @@ function validateGatewayTailscaleBind(config: OpenClawConfig): ConfigValidationI
   if (bindMode === "loopback") {
     return [];
   }
-  const customBindHost = config.gateway?.customBindHost;
+  const firstCustomBindHost = resolveFirstCustomBindHost(config.gateway?.customBindHost);
   if (
     bindMode === "custom" &&
-    isCanonicalDottedDecimalIPv4(customBindHost) &&
-    isLoopbackIpAddress(customBindHost)
+    firstCustomBindHost &&
+    isCanonicalDottedDecimalIPv4(firstCustomBindHost) &&
+    isLoopbackIpAddress(firstCustomBindHost)
   ) {
     return [];
   }

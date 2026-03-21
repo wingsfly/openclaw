@@ -46,7 +46,7 @@ type ConfigSummary = {
 type GatewayStatusSummary = {
   bindMode: GatewayBindMode;
   bindHost: string;
-  customBindHost?: string;
+  customBindHost?: string | string[];
   port: number;
   portSource: "service args" | "env/config";
   probeUrl: string;

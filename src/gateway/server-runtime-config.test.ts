@@ -181,7 +181,7 @@ describe("resolveGatewayRuntimeConfig", () => {
             auth: TOKEN_AUTH,
           },
         },
-        expectedMessage: "gateway.bind=custom requires a valid IPv4 customBindHost",
+        expectedMessage: "gateway.bind=custom requires valid IPv4 customBindHost entries",
       },
       {
         name: "custom bind with mismatched resolved host",

@@ -1,3 +1,5 @@
+import { resolveFirstCustomBindHost } from "../gateway/net.js";
+
 export type GatewayBindUrlResult =
   | {
       url: string;
@@ -10,7 +12,7 @@ export type GatewayBindUrlResult =
 
 export function resolveGatewayBindUrl(params: {
   bind?: string;
-  customBindHost?: string;
+  customBindHost?: string | string[];
   scheme: "ws" | "wss";
   port: number;
   pickTailnetHost: () => string | null;
@@ -18,9 +20,12 @@ export function resolveGatewayBindUrl(params: {
 }): GatewayBindUrlResult {
   const bind = params.bind ?? "loopback";
   if (bind === "custom") {
-    const host = params.customBindHost?.trim();
-    if (host) {
-      return { url: `${params.scheme}://${host}:${params.port}`, source: "gateway.bind=custom" };
+    const firstHost = resolveFirstCustomBindHost(params.customBindHost);
+    if (firstHost) {
+      return {
+        url: `${params.scheme}://${firstHost}:${params.port}`,
+        source: "gateway.bind=custom",
+      };
     }
     return { error: "gateway.bind=custom requires gateway.customBindHost." };
   }

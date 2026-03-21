@@ -155,7 +155,9 @@ export async function registerMattermostMonitorSlashCommands(params: {
     const slashCallbackUrl = resolveCallbackUrl({
       config: slashConfig,
       gatewayPort: slashGatewayPort,
-      gatewayHost: params.cfg.gateway?.customBindHost ?? undefined,
+      gatewayHost: Array.isArray(params.cfg.gateway?.customBindHost)
+        ? params.cfg.gateway?.customBindHost[0]
+        : params.cfg.gateway?.customBindHost,
     });
 
     warnOnSuspiciousCallbackUrl({

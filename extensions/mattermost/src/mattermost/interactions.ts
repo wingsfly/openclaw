@@ -126,10 +126,10 @@ export function computeInteractionCallbackUrl(
     return `${normalizeCallbackBaseUrl(callbackBaseUrl)}${path}`;
   }
   const port = typeof cfg?.gateway?.port === "number" ? cfg.gateway.port : 18789;
+  const rawCustomHost = cfg?.gateway?.customBindHost;
+  const firstCustomHost = (Array.isArray(rawCustomHost) ? rawCustomHost[0] : rawCustomHost)?.trim();
   let host =
-    cfg?.gateway?.customBindHost && !isWildcardBindHost(cfg.gateway.customBindHost)
-      ? cfg.gateway.customBindHost.trim()
-      : "localhost";
+    firstCustomHost && !isWildcardBindHost(firstCustomHost) ? firstCustomHost : "localhost";
 
   // Bracket IPv6 literals so the URL is valid: http://[::1]:18789/...
   if (host.includes(":") && !(host.startsWith("[") && host.endsWith("]"))) {

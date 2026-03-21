@@ -234,9 +234,28 @@ export function isLocalGatewayAddress(ip: string | undefined): boolean {
  *
  * @returns The bind address to use (never null)
  */
+/**
+ * Normalize customBindHost config to a flat array of trimmed, non-empty strings.
+ */
+export function normalizeCustomBindHosts(customHost?: string | string[]): string[] {
+  if (!customHost) {
+    return [];
+  }
+  const raw = Array.isArray(customHost) ? customHost : [customHost];
+  return raw.map((h) => h.trim()).filter(Boolean);
+}
+
+/**
+ * Return the first (primary) custom bind host, or undefined if none configured.
+ * Use this wherever only a single host string is needed (URLs, probes, display).
+ */
+export function resolveFirstCustomBindHost(raw?: string | string[]): string | undefined {
+  return normalizeCustomBindHosts(raw)[0];
+}
+
 export async function resolveGatewayBindHost(
   bind: import("../config/config.js").GatewayBindMode | undefined,
-  customHost?: string,
+  customHost?: string | string[],
 ): Promise<string> {
   const mode = bind ?? "loopback";
 
@@ -264,13 +283,14 @@ export async function resolveGatewayBindHost(
   }
 
   if (mode === "custom") {
-    const host = customHost?.trim();
-    if (!host) {
+    const hosts = normalizeCustomBindHosts(customHost);
+    const firstHost = hosts[0];
+    if (!firstHost) {
       return "0.0.0.0";
     } // invalid config → fall back to all
 
-    if (isValidIPv4(host) && (await canBindToHost(host))) {
-      return host;
+    if (isValidIPv4(firstHost) && (await canBindToHost(firstHost))) {
+      return firstHost;
     }
     // Custom IP failed → fall back to LAN
     return "0.0.0.0";
@@ -310,16 +330,28 @@ export async function canBindToHost(host: string): Promise<boolean> {
 
 export async function resolveGatewayListenHosts(
   bindHost: string,
-  opts?: { canBindToHost?: (host: string) => Promise<boolean> },
+  opts?: {
+    canBindToHost?: (host: string) => Promise<boolean>;
+    /** Additional custom bind hosts to include (for bind=custom with multiple IPs). */
+    extraBindHosts?: string[];
+  },
 ): Promise<string[]> {
-  if (bindHost !== "127.0.0.1") {
-    return [bindHost];
-  }
+  const hosts: string[] = [bindHost];
   const canBind = opts?.canBindToHost ?? canBindToHost;
-  if (await canBind("::1")) {
-    return [bindHost, "::1"];
+  if (bindHost === "127.0.0.1") {
+    if (await canBind("::1")) {
+      hosts.push("::1");
+    }
   }
-  return [bindHost];
+  // Append extra custom bind hosts (deduplicated, validated, and bindable).
+  if (opts?.extraBindHosts) {
+    for (const extra of opts.extraBindHosts) {
+      if (!hosts.includes(extra) && isValidIPv4(extra) && (await canBind(extra))) {
+        hosts.push(extra);
+      }
+    }
+  }
+  return hosts;
 }
 
 /**
