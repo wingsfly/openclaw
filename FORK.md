@@ -22,6 +22,7 @@ git remote -v
 ```
 
 如果 remote 配置丢失，重新设置：
+
 ```bash
 git remote add upstream https://github.com/openclaw/openclaw.git
 git remote set-url origin git@github.com:wingsfly/openclaw.git
@@ -67,19 +68,24 @@ git push origin dev/memomind-extension
 ## 注意事项
 
 ### Pre-commit Hook
+
 OpenClaw 仓库有严格的 pre-commit hook（`pnpm check`），包含 tsgo 类型检查。
 如果存在上游已有的类型错误导致 hook 失败，可使用 `--no-verify` 跳过：
+
 ```bash
 git commit --no-verify -m "feat(extensions): ..."
 ```
 
 ### Generated 文件
+
 新增/修改 extension 时，以下文件会需要重新生成并一起提交：
+
 - `src/config/schema.base.generated.ts`
 - `src/plugins/bundled-plugin-metadata.generated.ts`
 - `src/plugins/bundled-provider-auth-env-vars.generated.ts`
 
 生成命令：
+
 ```bash
 node --import tsx scripts/generate-base-config-schema.ts
 node scripts/generate-bundled-plugin-metadata.mjs
@@ -87,13 +93,14 @@ node scripts/generate-bundled-provider-auth-env-vars.mjs
 ```
 
 ### 分支策略
+
 - `main` — 保持与 upstream/main 同步，不在此分支直接开发
 - `dev/memomind-extension` — 个人扩展开发分支，持续 rebase 到 upstream/main
 
 ## 个人扩展清单
 
-| 扩展 | 目录 | 说明 |
-|------|------|------|
+| 扩展            | 目录                          | 说明                                        |
+| --------------- | ----------------------------- | ------------------------------------------- |
 | memory-memomind | `extensions/memory-memomind/` | MemoMind 个人信息管理集成（8 个 MCP tools） |
 
 ## 关联项目
