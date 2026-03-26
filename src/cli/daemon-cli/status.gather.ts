@@ -212,7 +212,10 @@ async function resolveGatewayStatusSummary(params: {
     ? "service args"
     : "env/config";
   const bindMode: GatewayBindMode = params.daemonCfg.gateway?.bind ?? "loopback";
-  const customBindHost = params.daemonCfg.gateway?.customBindHost;
+  const rawCustomBindHost = params.daemonCfg.gateway?.customBindHost;
+  const customBindHost = Array.isArray(rawCustomBindHost)
+    ? rawCustomBindHost[0]
+    : rawCustomBindHost;
   const { bindHost, warning: bindHostWarning } = await resolveBestEffortGatewayBindHostForDisplay({
     bindMode,
     customBindHost,

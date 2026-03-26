@@ -42,6 +42,13 @@ const MemoryIngestToolSchema = Type.Object(
     realm: optionalStringEnum(["work", "life", "personal", "private", "secret"] as const, {
       description: 'Privacy realm for the content (default: "personal").',
     }),
+    attachments: Type.Optional(
+      Type.Array(Type.String(), {
+        description:
+          "Local file paths of attachments to include with the memory entry. " +
+          "Use paths from [media attached: /path/...] references in the conversation.",
+      }),
+    ),
   },
   { additionalProperties: false },
 );
@@ -62,12 +69,17 @@ export function createMemoryIngestTool(api: OpenClawPluginApi) {
       const title = readStringParam(rawParams, "title");
       const realm = readStringParam(rawParams, "realm");
 
+      const attachments = Array.isArray(rawParams.attachments)
+        ? (rawParams.attachments as string[]).filter((p) => typeof p === "string" && p.trim())
+        : undefined;
+
       const client = new MemomindClient(api.config);
-      const response = await client.ingestText(content, {
+      const response = await client.ingestWithAttachments(content, {
         category: category || undefined,
         infoType: infoType || undefined,
         title: title || undefined,
         realm: realm || undefined,
+        attachments,
       });
 
       return jsonResult({

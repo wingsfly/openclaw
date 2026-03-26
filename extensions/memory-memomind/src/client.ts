@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { resolveMemomindApiKey, resolveMemomindEndpoint } from "./config.js";
 
@@ -168,7 +170,10 @@ export class MemomindClient {
   }
 
   private headers(): Record<string, string> {
-    const h: Record<string, string> = { "Content-Type": "application/json" };
+    const h: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-MemoMind-Platform": "openclaw",
+    };
     if (this.apiKey) {
       h["Authorization"] = `Bearer ${this.apiKey}`;
     }
@@ -264,6 +269,68 @@ export class MemomindClient {
       ...(options?.tags ? { tags: options.tags } : { tags: ["openclaw"] }),
       realm: options?.realm ?? "personal",
     });
+  }
+
+  async ingestWithAttachments(
+    content: string,
+    options?: {
+      category?: string;
+      infoType?: string;
+      title?: string;
+      realm?: string;
+      tags?: string[];
+      attachments?: string[];
+    },
+  ): Promise<MemomindIngestResponse> {
+    if (!options?.attachments?.length) {
+      return this.ingestText(content, options);
+    }
+
+    const url = `${this.endpoint}/ingest/text-with-attachments`;
+    const formData = new FormData();
+    formData.append("content", content);
+    formData.append(
+      "metadata",
+      JSON.stringify({
+        source: "openclaw",
+        ...(options.infoType ? { info_type: options.infoType } : {}),
+        ...(options.title ? { title: options.title } : {}),
+        ...(options.realm ? { realm: options.realm } : {}),
+        ...(options.category ? { category: options.category } : {}),
+        ...(options.tags ? { tags: options.tags } : { tags: ["openclaw"] }),
+      }),
+    );
+
+    for (const filePath of options.attachments) {
+      try {
+        const data = await readFile(filePath);
+        const fileName = path.basename(filePath);
+        const blob = new Blob([data]);
+        formData.append("files", blob, fileName);
+      } catch {
+        // Skip files that can't be read
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "X-MemoMind-Platform": "openclaw",
+    };
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+    // Note: Do NOT set Content-Type for FormData - fetch sets it automatically with boundary
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`MemoMind API error ${response.status}: ${text}`);
+    }
+    return (await response.json()) as MemomindIngestResponse;
   }
 
   // ── Chat ──

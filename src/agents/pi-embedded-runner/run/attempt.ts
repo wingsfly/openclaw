@@ -2841,6 +2841,30 @@ export async function runEmbeddedAttempt(
                 : undefined,
           });
 
+          // Vision fallback: when the primary model lacks vision but images were provided
+          // (e.g., from Control UI), describe them via a vision-capable fallback model and
+          // inject the description text into the prompt. Also persist images to disk so
+          // tools (e.g., memory_ingest) can reference them via the attachments parameter.
+          if (imageResult.images.length === 0 && !modelHasVision && params.images?.length) {
+            const { describeImagesForFallback, persistImagesToMedia } = await import("./images.js");
+            const savedPaths = await persistImagesToMedia(params.images);
+            const description = await describeImagesForFallback({
+              images: params.images,
+              config: params.config,
+              agentDir,
+            });
+            if (description) {
+              const pathRefs =
+                savedPaths.length > 0
+                  ? savedPaths.map((p) => `[media attached: ${p} (image/*)]`).join("\n")
+                  : "";
+              effectivePrompt =
+                `[Image Description]\n${description}\n[/Image Description]\n` +
+                (pathRefs ? `${pathRefs}\n` : "") +
+                `\n${effectivePrompt}`;
+            }
+          }
+
           cacheTrace?.recordStage("prompt:images", {
             prompt: effectivePrompt,
             messages: activeSession.messages,

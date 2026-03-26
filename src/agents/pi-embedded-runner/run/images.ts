@@ -363,3 +363,175 @@ export async function detectAndLoadPromptImages(params: {
     skippedCount,
   };
 }
+
+/**
+ * Persists base64 ImageContent entries to the OpenClaw media/inbound directory
+ * so that tools (e.g., memory_ingest) can reference them as file paths.
+ *
+ * @returns Array of saved absolute file paths.
+ */
+export async function persistImagesToMedia(images: ImageContent[]): Promise<string[]> {
+  if (!images.length) {
+    return [];
+  }
+  try {
+    const { randomUUID } = await import("node:crypto");
+    const fs = await import("node:fs/promises");
+    const { ensureMediaDir } = await import("../../../media/store.js");
+    const mediaDir = await ensureMediaDir();
+    const inboundDir = path.join(mediaDir, "inbound");
+    await fs.mkdir(inboundDir, { recursive: true });
+
+    const paths: string[] = [];
+    for (const img of images) {
+      const ext = (img.mimeType ?? "image/jpeg").split("/")[1] ?? "jpg";
+      const fileName = `${randomUUID()}.${ext}`;
+      const filePath = path.join(inboundDir, fileName);
+      const buffer = Buffer.from(img.data, "base64");
+      await fs.writeFile(filePath, buffer);
+      paths.push(filePath);
+      log.info(`Persisted image to ${filePath} (${buffer.length} bytes)`);
+    }
+    return paths;
+  } catch (err) {
+    log.warn(`Failed to persist images to media: ${String(err)}`);
+    return [];
+  }
+}
+
+/**
+ * Resolves the image model configuration from OpenClaw config.
+ * Returns { provider, model, baseUrl, apiKey } or null.
+ */
+async function resolveVisionModelFromConfig(
+  config: import("../../../config/config.js").OpenClawConfig | undefined,
+): Promise<{
+  provider: string;
+  model: string;
+  baseUrl: string;
+  apiKey?: string;
+} | null> {
+  if (!config) {
+    return null;
+  }
+
+  // Read agents.defaults.imageModel.primary (e.g., "omlx/Qwen3.5-35B-A3B-8bit")
+  const imageModelCfg = config.agents?.defaults?.imageModel;
+  let primaryRef: string | undefined;
+  if (typeof imageModelCfg === "string") {
+    primaryRef = imageModelCfg;
+  } else if (typeof imageModelCfg === "object" && imageModelCfg !== null) {
+    primaryRef = (imageModelCfg as { primary?: string }).primary;
+  }
+  if (!primaryRef?.trim()) {
+    return null;
+  }
+
+  const slashIdx = primaryRef.indexOf("/");
+  if (slashIdx < 0) {
+    return null;
+  }
+  const providerName = primaryRef.slice(0, slashIdx);
+  const modelId = primaryRef.slice(slashIdx + 1);
+
+  // Look up provider config for baseUrl and apiKey
+  const providerCfg = config.models?.providers?.[providerName];
+  if (!providerCfg || typeof providerCfg.baseUrl !== "string") {
+    return null;
+  }
+
+  return {
+    provider: providerName,
+    model: modelId,
+    baseUrl: providerCfg.baseUrl.replace(/\/+$/, ""),
+    apiKey: typeof providerCfg.apiKey === "string" ? providerCfg.apiKey : undefined,
+  };
+}
+
+/**
+ * Describes images using a vision-capable fallback model when the primary model
+ * does not support native image input.
+ *
+ * Directly calls the configured vision model via OpenAI-compatible API,
+ * bypassing Pi's model registry to support custom providers.
+ *
+ * @returns Description text, or null if no vision model is available or on failure.
+ */
+export async function describeImagesForFallback(params: {
+  images: ImageContent[];
+  config: import("../../../config/config.js").OpenClawConfig | undefined;
+  agentDir: string;
+}): Promise<string | null> {
+  if (!params.images.length) {
+    return null;
+  }
+
+  try {
+    const visionModel = await resolveVisionModelFromConfig(params.config);
+    if (!visionModel) {
+      log.debug("Vision fallback skipped: no image model configured");
+      return null;
+    }
+
+    const imageContents = params.images.map((img) => ({
+      type: "image_url" as const,
+      image_url: {
+        url: `data:${img.mimeType ?? "image/jpeg"};base64,${img.data}`,
+      },
+    }));
+
+    const body = {
+      model: visionModel.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "请详细描述这张图片的所有内容，包括文字、布局和关键信息。如果图片中包含对话，请逐条列出对话内容。如果包含待办事项或任务列表，请逐条列出。",
+            },
+            ...imageContents,
+          ],
+        },
+      ],
+      max_tokens: 4096,
+      stream: false,
+      // Disable thinking/reasoning for faster, direct responses
+      chat_template_kwargs: { enable_thinking: false },
+    };
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (visionModel.apiKey) {
+      headers["Authorization"] = `Bearer ${visionModel.apiKey}`;
+    }
+
+    const url = `${visionModel.baseUrl}/chat/completions`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      throw new Error(`Vision API ${resp.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    let text = json.choices?.[0]?.message?.content?.trim() ?? "";
+    // Strip thinking tags (e.g., Qwen3.5 may wrap reasoning in <think>...</think>)
+    text = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    if (!text) {
+      throw new Error("Vision API returned empty response");
+    }
+
+    log.info(
+      `Vision fallback: described ${params.images.length} image(s) via ${visionModel.provider}/${visionModel.model}`,
+    );
+    return text;
+  } catch (err) {
+    log.warn(`Vision fallback failed, proceeding without image description: ${String(err)}`);
+    return null;
+  }
+}
