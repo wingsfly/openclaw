@@ -1763,6 +1763,52 @@ export const GENERATED_BUNDLED_PLUGIN_METADATA = [
     },
   },
   {
+    dirName: "memory-memomind",
+    idHint: "memory-memomind",
+    source: {
+      source: "./index.ts",
+      built: "index.js",
+    },
+    packageName: "@openclaw/memory-memomind",
+    packageVersion: "0.1.0",
+    packageDescription: "Personal memory via MemoMind backend",
+    packageManifest: {
+      extensions: ["./index.ts"],
+    },
+    manifest: {
+      id: "memory-memomind",
+      configSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          endpoint: {
+            type: "string",
+          },
+          apiKey: {
+            type: ["string", "object"],
+          },
+        },
+      },
+      kind: "memory",
+      providerAuthEnvVars: {
+        memomind: ["MEMOMIND_API_KEY"],
+      },
+      uiHints: {
+        endpoint: {
+          label: "MemoMind Endpoint",
+          help: "MemoMind service endpoint URL (default: http://localhost:8100).",
+          placeholder: "http://localhost:8100",
+        },
+        apiKey: {
+          label: "MemoMind API Key",
+          help: "API key for MemoMind service (fallback: MEMOMIND_API_KEY env var).",
+          sensitive: true,
+          placeholder: "mm-...",
+        },
+      },
+    },
+  },
+  {
     dirName: "microsoft",
     idHint: "microsoft",
     source: {

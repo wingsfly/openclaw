@@ -10132,7 +10132,17 @@ export const GENERATED_BASE_CONFIG_SCHEMA = {
             ],
           },
           customBindHost: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+              },
+            ],
           },
           controlUi: {
             type: "object",
@@ -12142,7 +12152,7 @@ export const GENERATED_BASE_CONFIG_SCHEMA = {
     },
     "gateway.customBindHost": {
       label: "Gateway Custom Bind Host",
-      help: "Explicit bind host/IP used when gateway.bind is set to custom for manual interface targeting. Use a precise address and avoid wildcard binds unless external exposure is required.",
+      help: "Explicit bind host/IP (or array of IPs) used when gateway.bind is set to custom for manual interface targeting. Accepts a single IP string or an array of IPs to bind to multiple interfaces.",
       tags: ["network"],
     },
     "gateway.controlUi": {

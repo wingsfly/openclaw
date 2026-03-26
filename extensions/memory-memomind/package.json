@@ -1,0 +1,20 @@
+{
+  "name": "@openclaw/memory-memomind",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal memory via MemoMind backend",
+  "type": "module",
+  "peerDependencies": {
+    "openclaw": ">=2026.3.11"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
